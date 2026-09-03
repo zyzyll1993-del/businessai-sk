@@ -101,11 +101,15 @@
   render();
 })();
 
-(function loadMarketingModule(){
-  if (document.querySelector('script[data-businessai-marketing]')) return;
-  const script = document.createElement('script');
-  script.src = 'marketing.js';
-  script.defer = true;
-  script.dataset.businessaiMarketing = '1';
-  document.body.appendChild(script);
+(function loadExtraModules(){
+  const load = (src, marker) => {
+    if (document.querySelector(`script[${marker}]`)) return;
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    script.setAttribute(marker, '1');
+    document.body.appendChild(script);
+  };
+  load('marketing.js', 'data-businessai-marketing');
+  load('documents.js', 'data-businessai-documents');
 })();
