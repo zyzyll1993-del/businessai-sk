@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#07111f">
   <title>BusinessAI.SK</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="calculator.css">
 </head>
 <body>
   <header class="site-header">
@@ -72,6 +73,30 @@
       <div id="result" class="result" hidden aria-live="polite"></div>
     </section>
 
+    <section id="calculator" class="calculator-section">
+      <div class="calculator-head">
+        <p class="eyebrow" data-calc-i18n="eyebrow">Biznis kalkulátor</p>
+        <h2 data-calc-i18n="title">Koľko má stáť váš produkt alebo služba?</h2>
+        <p data-calc-i18n="lead">Spočítajte úplné náklady, cenu a zisk. Všetky hodnoty sú za jednu objednávku alebo jeden kus.</p>
+      </div>
+      <div class="calculator-grid">
+        <form id="calculator-form" class="calculator-form">
+          <div class="calc-field"><label for="calc-materials" data-calc-i18n="materials">Materiál (€)</label><input id="calc-materials" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="calc-field"><label for="calc-packaging" data-calc-i18n="packaging">Balenie (€)</label><input id="calc-packaging" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="calc-field"><label for="calc-shipping" data-calc-i18n="shipping">Doprava (€)</label><input id="calc-shipping" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="calc-field"><label for="calc-fees" data-calc-i18n="fees">Poplatky a provízie (€)</label><input id="calc-fees" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="calc-field full"><label for="calc-other" data-calc-i18n="other">Iné priame náklady (€)</label><input id="calc-other" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="calc-field"><label for="calc-hours" data-calc-i18n="hours">Čas práce (hodiny)</label><input id="calc-hours" type="number" min="0" step="0.1" inputmode="decimal" value="0"></div>
+          <div class="calc-field"><label for="calc-rate" data-calc-i18n="rate">Hodinová sadzba (€)</label><input id="calc-rate" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="calc-field"><label for="calc-overhead" data-calc-i18n="overhead">Režijná rezerva (%)</label><input id="calc-overhead" type="number" min="0" step="1" inputmode="decimal" value="10"></div>
+          <div class="calc-field"><label for="calc-margin" data-calc-i18n="margin">Cieľová marža (%)</label><input id="calc-margin" type="number" min="0" max="99" step="1" inputmode="decimal" value="30"></div>
+          <p class="calc-help" data-calc-i18n="help">Marža sa počíta z predajnej ceny. Napr. pri 30 % marži tvorí zisk 30 % predajnej ceny.</p>
+          <div class="calc-actions"><button class="btn primary" type="submit" data-calc-i18n="calculate">Vypočítať</button><button class="btn secondary" id="calc-reset" type="button" data-calc-i18n="reset">Vymazať</button></div>
+        </form>
+        <div id="calc-results" class="calculator-results" data-ready="0" aria-live="polite"><h3 data-calc-i18n="results">Výsledok</h3><p class="calc-note" data-calc-i18n="note">Výpočet je orientačný a nezahŕňa DPH, daň z príjmu ani špecifické zákonné odvody.</p></div>
+      </div>
+    </section>
+
     <section id="tools" class="section">
       <p class="eyebrow" data-i18n="toolsEyebrow">6 BusinessAI nástrojov</p>
       <h2 data-i18n="toolsTitle">Od nápadu po konkrétny výstup</h2>
@@ -98,5 +123,6 @@
 
   <footer><strong>BusinessAI.SK</strong><span data-i18n="footerText">AI pomocník pre malé podnikanie na Slovensku · MVP 2026</span></footer>
   <script src="app.js"></script>
+  <script src="calculator.js"></script>
 </body>
 </html>
