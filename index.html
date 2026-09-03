@@ -8,6 +8,7 @@
   <title>BusinessAI.SK</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="calculator.css">
+  <link rel="stylesheet" href="business-plan.css">
 </head>
 <body>
   <header class="site-header">
@@ -61,7 +62,6 @@
         <p id="assistant-description" data-i18n="assistantDescription">Vyberte modul a napíšte pár viet. MVP pripraví praktickú štruktúru ďalších krokov priamo v prehliadači.</p>
         <div id="selected-module" class="selected-module">💡 <span data-i18n="ideaTitle">Biznis nápad</span></div>
       </div>
-
       <form id="business-form" class="assistant-box">
         <label for="business-input" data-i18n="yourQuestion">Vaša otázka</label>
         <textarea id="business-input" rows="6" data-i18n-placeholder="placeholder" placeholder="Napríklad: Chcem predávať kreatívne detské sady na Slovensku. Ako začať?"></textarea>
@@ -97,6 +97,30 @@
       </div>
     </section>
 
+    <section id="business-plan-builder" class="business-plan-section">
+      <div class="plan-head">
+        <p class="eyebrow" data-plan-i18n="eyebrow">Biznis plán</p>
+        <h2 data-plan-i18n="title">Vytvorte si jednoduchý plán podnikania</h2>
+        <p data-plan-i18n="lead">Vyplňte základné údaje. BusinessAI z nich vytvorí praktický plán a 30-dňový akčný postup.</p>
+      </div>
+      <div class="plan-builder-grid">
+        <form id="business-plan-form" class="plan-form">
+          <div class="plan-field"><label for="plan-name" data-plan-i18n="name">Názov alebo pracovný názov</label><input id="plan-name" type="text" autocomplete="organization"></div>
+          <div class="plan-field"><label for="plan-market" data-plan-i18n="market">Kde chcete predávať?</label><input id="plan-market" type="text" placeholder="Slovensko / Bratislava / online"></div>
+          <div class="plan-field full"><label for="plan-idea" data-plan-i18n="idea">Čo chcete predávať?</label><textarea id="plan-idea" rows="3"></textarea></div>
+          <div class="plan-field full"><label for="plan-customer" data-plan-i18n="customer">Kto je váš ideálny zákazník?</label><textarea id="plan-customer" rows="3"></textarea></div>
+          <div class="plan-field"><label for="plan-price" data-plan-i18n="price">Priemerná cena (€)</label><input id="plan-price" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="plan-field"><label for="plan-sales" data-plan-i18n="sales">Cieľ predajov za mesiac</label><input id="plan-sales" type="number" min="0" step="1" inputmode="numeric" value="0"></div>
+          <div class="plan-field"><label for="plan-budget" data-plan-i18n="budget">Štartovací rozpočet (€)</label><input id="plan-budget" type="number" min="0" step="0.01" inputmode="decimal" value="0"></div>
+          <div class="plan-field"><label for="plan-channels" data-plan-i18n="channels">Predajné kanály</label><input id="plan-channels" type="text" placeholder="Instagram, web, marketplace"></div>
+          <div class="plan-field full"><label for="plan-advantage" data-plan-i18n="advantage">Prečo si má zákazník vybrať vás?</label><textarea id="plan-advantage" rows="3"></textarea></div>
+          <div class="plan-field full"><label for="plan-goal" data-plan-i18n="goal">Hlavný cieľ na 30 dní</label><textarea id="plan-goal" rows="3"></textarea></div>
+          <div class="plan-actions"><button class="btn primary" type="submit" data-plan-i18n="generate">Vytvoriť plán</button><button class="btn secondary" id="plan-reset" type="button" data-plan-i18n="reset">Vymazať</button></div>
+        </form>
+        <div id="plan-output" class="plan-output" data-ready="0" aria-live="polite"><h3 data-plan-i18n="output">Váš biznis plán</h3><p class="plan-placeholder" data-plan-i18n="placeholder">Vyplňte formulár a vytvorte plán.</p></div>
+      </div>
+    </section>
+
     <section id="tools" class="section">
       <p class="eyebrow" data-i18n="toolsEyebrow">6 BusinessAI nástrojov</p>
       <h2 data-i18n="toolsTitle">Od nápadu po konkrétny výstup</h2>
@@ -124,5 +148,6 @@
   <footer><strong>BusinessAI.SK</strong><span data-i18n="footerText">AI pomocník pre malé podnikanie na Slovensku · MVP 2026</span></footer>
   <script src="app.js"></script>
   <script src="calculator.js"></script>
+  <script src="business-plan.js"></script>
 </body>
 </html>
