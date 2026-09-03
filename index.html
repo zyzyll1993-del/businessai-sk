@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="sk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="BusinessAI.SK — AI pomocník pre podnikateľov a živnostníkov na Slovensku.">
+  <title>BusinessAI.SK</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="BusinessAI.SK domov">BusinessAI<span>.SK</span></a>
+    <nav class="nav" aria-label="Hlavná navigácia">
+      <a href="#tools">Nástroje</a>
+      <a href="#how">Ako to funguje</a>
+      <button class="lang-btn" type="button" aria-label="Jazyk">SK</button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">AI pre podnikanie na Slovensku</p>
+        <h1>Od nápadu k prvému zákazníkovi.</h1>
+        <p class="lead">BusinessAI.SK vám pomôže premyslieť podnikateľský nápad, spočítať základy, pripraviť ponuku a vytvoriť texty pre zákazníkov.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#assistant">Začať zdarma</a>
+          <a class="btn secondary" href="#tools">Pozrieť nástroje</a>
+        </div>
+      </div>
+      <aside class="hero-card" aria-label="Ukážka BusinessAI">
+        <span class="status">● BusinessAI pripravený</span>
+        <h2>Čo chcete dnes vyriešiť?</h2>
+        <div class="quick-grid">
+          <button data-prompt="Chcem overiť podnikateľský nápad.">💡 Overiť nápad</button>
+          <button data-prompt="Pomôž mi vypočítať cenu produktu alebo služby.">€ Vypočítať cenu</button>
+          <button data-prompt="Vytvor mi jednoduchý podnikateľský plán.">📊 Biznis plán</button>
+          <button data-prompt="Napíš predajný text pre môj produkt alebo službu.">✍️ Predajný text</button>
+        </div>
+      </aside>
+    </section>
+
+    <section id="assistant" class="assistant-section">
+      <div>
+        <p class="eyebrow">Prvý prototyp</p>
+        <h2>Opíšte svoj biznis alebo otázku</h2>
+        <p>Táto prvá verzia pripraví štruktúrovaný návrh priamo v prehliadači. Neskôr sem pripojíme plnohodnotnú AI.</p>
+      </div>
+      <form id="business-form" class="assistant-box">
+        <label for="business-input">Vaša otázka</label>
+        <textarea id="business-input" rows="5" placeholder="Napríklad: Chcem predávať kreatívne detské sady na Slovensku. Ako začať?"></textarea>
+        <button class="btn primary" type="submit">Analyzovať</button>
+      </form>
+      <div id="result" class="result" hidden></div>
+    </section>
+
+    <section id="tools" class="section">
+      <p class="eyebrow">BusinessAI nástroje</p>
+      <h2>Jedno miesto pre malé podnikanie</h2>
+      <div class="cards">
+        <article><span>01</span><h3>AI Biznis poradca</h3><p>Premení nápad na konkrétne ďalšie kroky.</p></article>
+        <article><span>02</span><h3>Kalkulátor ceny</h3><p>Pomôže odhadnúť náklady, maržu a predajnú cenu.</p></article>
+        <article><span>03</span><h3>Marketing</h3><p>Pripraví ponuky, reklamy, príspevky a popisy produktov.</p></article>
+        <article><span>04</span><h3>Plán podnikania</h3><p>Usporiada zákazníka, produkt, náklady, predaj a priority.</p></article>
+      </div>
+    </section>
+
+    <section id="how" class="section how">
+      <div><strong>1</strong><h3>Napíšte cieľ</h3><p>Stačí pár viet o vašom nápade alebo probléme.</p></div>
+      <div><strong>2</strong><h3>BusinessAI analyzuje</h3><p>Dostanete jednoduchú štruktúru namiesto všeobecnej odpovede.</p></div>
+      <div><strong>3</strong><h3>Urobte ďalší krok</h3><p>Pokračujte kalkuláciou, ponukou alebo konkrétnym plánom.</p></div>
+    </section>
+  </main>
+
+  <footer>© 2026 BusinessAI.SK · MVP</footer>
+  <script src="app.js"></script>
+</body>
+</html>
