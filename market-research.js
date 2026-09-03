@@ -100,3 +100,12 @@
   document.querySelectorAll('[data-lang]').forEach(button => button.addEventListener('click', () => setTimeout(render, 0)));
   render();
 })();
+
+(function loadMarketingModule(){
+  if (document.querySelector('script[data-businessai-marketing]')) return;
+  const script = document.createElement('script');
+  script.src = 'marketing.js';
+  script.defer = true;
+  script.dataset.businessaiMarketing = '1';
+  document.body.appendChild(script);
+})();
