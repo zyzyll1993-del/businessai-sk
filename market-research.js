@@ -112,4 +112,5 @@
   };
   load('marketing.js', 'data-businessai-marketing');
   load('documents.js', 'data-businessai-documents');
+  load('dashboard.js', 'data-businessai-dashboard');
 })();
