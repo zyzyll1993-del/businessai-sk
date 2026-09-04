@@ -1,7 +1,7 @@
 (()=>{
  const form=document.querySelector('#business-form'),input=document.querySelector('#business-input'),result=document.querySelector('#result');
  if(!form||!input||!result)return;
- const endpoint=()=>String(window.BUSINESSAI_AI_ENDPOINT||localStorage.getItem('businessai-ai-endpoint')||'').trim();
+ const endpoint=()=>String(window.BUSINESSAI_AI_ENDPOINT||localStorage.getItem('businessai-ai-endpoint')||'https://businessai-api.zyzyll1993.workers.dev/').trim();
  const lang=()=>localStorage.getItem('businessai-language')||document.documentElement.lang||'sk';
  const copy={
   sk:{loading:'BusinessAI premýšľa…',error:'AI služba je momentálne nedostupná. Použijem lokálny MVP režim.',badge:'AI odpoveď'},
