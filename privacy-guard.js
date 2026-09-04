@@ -1,13 +1,13 @@
 (()=>{
  if(window.BusinessAIPrivacy?.ready)return;
  const WORKER_HOST='businessai-api.zyzyll1993.workers.dev';
- const HISTORY_KEY='businessai-ai-history',APPLY_KEY='businessai-ai-apply-cache';
+ const HISTORY_KEY='businessai-ai-history',APPLY_KEY='businessai-ai-apply-cache',AUTOPLAN_KEY='businessai-ai-autoplan';
  const supported=['sk','uk','en'];
  const lang=()=>{const v=localStorage.getItem('businessai-language')||document.documentElement.lang||'sk';return supported.includes(v)?v:'sk'};
  const copy={
-  sk:{notice:'Ochrana údajov je aktívna: pred odoslaním do AI automaticky odstránime e-mail, telefón, IBAN, číslo platobnej karty a bežné tajné kľúče. Nevkladajte heslá, doklady, zdravotné údaje ani celé osobné spisy.',redacted:'Citlivé údaje boli pred odoslaním do AI odstránené.',clear:'Vymazať AI históriu',confirm:'Vymazať lokálnu AI históriu a aktuálnu AI odpoveď na tomto zariadení?',cleared:'AI história bola vymazaná.'},
-  uk:{notice:'Захист даних активний: перед відправленням в AI автоматично видаляємо e-mail, телефон, IBAN, номер платіжної картки та типові секретні ключі. Не вводьте паролі, документи, медичні дані або повні персональні досьє.',redacted:'Чутливі дані видалено перед відправленням в AI.',clear:'Очистити AI-історію',confirm:'Видалити локальну AI-історію та поточну AI-відповідь на цьому пристрої?',cleared:'AI-історію видалено.'},
-  en:{notice:'Data protection is active: before sending to AI we automatically remove email addresses, phone numbers, IBANs, payment-card numbers and common secret keys. Do not enter passwords, identity documents, health data or full personal records.',redacted:'Sensitive data was removed before sending to AI.',clear:'Clear AI history',confirm:'Delete local AI history and the current AI response on this device?',cleared:'AI history was deleted.'}
+  sk:{notice:'Ochrana údajov je aktívna: pred odoslaním do AI automaticky odstránime e-mail, telefón, IBAN, číslo platobnej karty a bežné tajné kľúče. Nevkladajte heslá, doklady, zdravotné údaje ani celé osobné spisy.',redacted:'Citlivé údaje boli pred odoslaním do AI odstránené.',clear:'Vymazať AI históriu',confirm:'Vymazať lokálnu AI históriu, AI autoplán a aktuálnu AI odpoveď na tomto zariadení?',cleared:'AI história a autoplán boli vymazané.'},
+  uk:{notice:'Захист даних активний: перед відправленням в AI автоматично видаляємо e-mail, телефон, IBAN, номер платіжної картки та типові секретні ключі. Не вводьте паролі, документи, медичні дані або повні персональні досьє.',redacted:'Чутливі дані видалено перед відправленням в AI.',clear:'Очистити AI-історію',confirm:'Видалити локальну AI-історію, AI-автоплан і поточну AI-відповідь на цьому пристрої?',cleared:'AI-історію та автоплан видалено.'},
+  en:{notice:'Data protection is active: before sending to AI we automatically remove email addresses, phone numbers, IBANs, payment-card numbers and common secret keys. Do not enter passwords, identity documents, health data or full personal records.',redacted:'Sensitive data was removed before sending to AI.',clear:'Clear AI history',confirm:'Delete local AI history, AI autoplan and the current AI response on this device?',cleared:'AI history and autoplan were deleted.'}
  };
  const t=()=>copy[lang()]||copy.sk;
  const luhn=value=>{const digits=String(value).replace(/\D/g,'');if(digits.length<13||digits.length>19)return false;let sum=0,alt=false;for(let i=digits.length-1;i>=0;i--){let n=Number(digits[i]);if(alt){n*=2;if(n>9)n-=9}sum+=n;alt=!alt}return sum%10===0};
@@ -33,12 +33,12 @@
  window.BusinessAIPrivacy={ready:true,sanitizeText,sanitizeObject};
  const nativeSetItem=Storage.prototype.setItem;
  Storage.prototype.setItem=function(key,value){
-  if(this===localStorage&&(key===HISTORY_KEY||key===APPLY_KEY)&&typeof value==='string'){
+  if(this===localStorage&&[HISTORY_KEY,APPLY_KEY,AUTOPLAN_KEY].includes(key)&&typeof value==='string'){
    try{const parsed=JSON.parse(value),safe=sanitizeObject(parsed);if(safe.changed)value=JSON.stringify(safe.value)}catch(_){}
   }
   return nativeSetItem.call(this,key,value);
  };
- for(const key of [HISTORY_KEY,APPLY_KEY]){try{const raw=localStorage.getItem(key);if(!raw)continue;const parsed=JSON.parse(raw),safe=sanitizeObject(parsed);if(safe.changed)nativeSetItem.call(localStorage,key,JSON.stringify(safe.value))}catch(_){}}
+ for(const key of [HISTORY_KEY,APPLY_KEY,AUTOPLAN_KEY]){try{const raw=localStorage.getItem(key);if(!raw)continue;const parsed=JSON.parse(raw),safe=sanitizeObject(parsed);if(safe.changed)nativeSetItem.call(localStorage,key,JSON.stringify(safe.value))}catch(_){}}
  const originalFetch=window.fetch.bind(window);
  window.fetch=async function(input,init={}){
   const url=typeof input==='string'?input:(input?.url||'');
@@ -57,7 +57,7 @@
  function mount(){
   const form=document.querySelector('#business-form');if(!form)return;
   let box=form.querySelector('.privacy-guard');if(!box){box=document.createElement('div');box.className='privacy-guard';const footer=form.querySelector('.form-footer');footer?.insertAdjacentElement('beforebegin',box)}
-  const render=()=>{const c=t();box.innerHTML=`<div class="privacy-guard-main"><span class="privacy-guard-icon">🛡️</span><span class="privacy-guard-text">${c.notice}</span></div><div class="privacy-guard-actions"><span class="privacy-guard-status" aria-live="polite"></span><button type="button" class="privacy-clear-history">${c.clear}</button></div>`;box.querySelector('.privacy-clear-history').onclick=()=>{if(!confirm(c.confirm))return;localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(APPLY_KEY);const result=document.querySelector('#result'),input=document.querySelector('#business-input');if(result){result.innerHTML='';result.hidden=true;result.dataset.ai='0'}if(input)input.value='';box.querySelector('.privacy-guard-status').textContent=c.cleared;window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))}}
+  const render=()=>{const c=t();box.innerHTML=`<div class="privacy-guard-main"><span class="privacy-guard-icon">🛡️</span><span class="privacy-guard-text">${c.notice}</span></div><div class="privacy-guard-actions"><span class="privacy-guard-status" aria-live="polite"></span><button type="button" class="privacy-clear-history">${c.clear}</button></div>`;box.querySelector('.privacy-clear-history').onclick=()=>{if(!confirm(c.confirm))return;localStorage.removeItem(HISTORY_KEY);localStorage.removeItem(APPLY_KEY);localStorage.removeItem(AUTOPLAN_KEY);const result=document.querySelector('#result'),input=document.querySelector('#business-input');if(result){result.innerHTML='';result.hidden=true;result.dataset.ai='0'}if(input)input.value='';box.querySelector('.privacy-guard-status').textContent=c.cleared;window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))}}
   render();
   window.addEventListener('businessai:language-changed',render);
   window.addEventListener('businessai:privacy-redacted',()=>{const el=box.querySelector('.privacy-guard-status');if(el){el.textContent=t().redacted;setTimeout(()=>{if(el)el.textContent=''},5000)}});
