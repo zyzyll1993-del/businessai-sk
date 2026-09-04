@@ -12,6 +12,43 @@
  };
  const t=()=>copy[lang()]||copy.sk;
  const esc=value=>{const div=document.createElement('div');div.textContent=String(value??'');return div.innerHTML};
+ const inline=value=>esc(value)
+  .replace(/`([^`]+)`/g,'<code>$1</code>')
+  .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+  .replace(/__([^_]+)__/g,'<strong>$1</strong>')
+  .replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+ const tableCells=line=>line.trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim());
+ const isTableDivider=line=>/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+ const isBlockStart=(lines,i)=>{const line=lines[i]||'',next=lines[i+1]||'';return /^#{1,4}\s+/.test(line)||/^\s*[-*+]\s+/.test(line)||/^\s*\d+[.)]\s+/.test(line)||/^\s*>\s?/.test(line)||/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)||(line.includes('|')&&isTableDivider(next))};
+ function markdown(text){
+  const lines=String(text??'').replace(/\r\n?/g,'\n').split('\n'),out=[];
+  let i=0;
+  while(i<lines.length){
+   const line=lines[i];
+   if(!line.trim()){i++;continue}
+   const heading=line.match(/^(#{1,4})\s+(.+)$/);
+   if(heading){const level=Math.min(4,heading[1].length+1);out.push(`<h${level}>${inline(heading[2])}</h${level}>`);i++;continue}
+   if(/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)){out.push('<hr>');i++;continue}
+   if(line.includes('|')&&isTableDivider(lines[i+1]||'')){
+    const head=tableCells(line);i+=2;const rows=[];
+    while(i<lines.length&&lines[i].trim()&&lines[i].includes('|')&&!isTableDivider(lines[i])){rows.push(tableCells(lines[i]));i++}
+    const width=Math.max(head.length,...rows.map(r=>r.length),1);
+    while(head.length<width)head.push('');rows.forEach(r=>{while(r.length<width)r.push('')});
+    out.push(`<div class="ai-table-wrap"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);continue
+   }
+   if(/^\s*[-*+]\s+/.test(line)){
+    const items=[];while(i<lines.length){const m=lines[i].match(/^\s*[-*+]\s+(.+)$/);if(!m)break;items.push(m[1]);i++}out.push(`<ul>${items.map(x=>`<li>${inline(x)}</li>`).join('')}</ul>`);continue
+   }
+   if(/^\s*\d+[.)]\s+/.test(line)){
+    const items=[];while(i<lines.length){const m=lines[i].match(/^\s*\d+[.)]\s+(.+)$/);if(!m)break;items.push(m[1]);i++}out.push(`<ol>${items.map(x=>`<li>${inline(x)}</li>`).join('')}</ol>`);continue
+   }
+   if(/^\s*>\s?/.test(line)){
+    const parts=[];while(i<lines.length){const m=lines[i].match(/^\s*>\s?(.*)$/);if(!m)break;parts.push(m[1]);i++}out.push(`<blockquote>${parts.map(inline).join('<br>')}</blockquote>`);continue
+   }
+   const p=[];while(i<lines.length&&lines[i].trim()&&!isBlockStart(lines,i)){p.push(lines[i]);i++}if(!p.length){p.push(lines[i]);i++}out.push(`<p>${p.map(inline).join('<br>')}</p>`);
+  }
+  return out.join('');
+ }
  const readProject=()=>{try{return JSON.parse(localStorage.getItem(PROJECT_KEY)||'{}')||{}}catch(_){return{}}};
  const readHistory=()=>{try{const x=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(x)?x:[]}catch(_){return[]}};
  const saveHistory=item=>{const h=readHistory();const dupe=h.find(x=>x.question===item.question&&x.answer===item.answer);if(!dupe)h.unshift(item);localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,20)));window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))};
@@ -53,10 +90,13 @@
  function render(text,question=input.value.trim(),structured=null,store=true){
   const c=t();if(store)saveHistory({question,answer:text,structured:structured||null,createdAt:new Date().toISOString(),lang:lang()});
   result.hidden=false;result.dataset.ai='1';
-  result.innerHTML=`<div class="ai-response-badge">✨ ${c.badge}</div><div class="ai-response-text">${esc(text).replace(/\n/g,'<br>')}</div><div class="ai-workflow-actions"><button type="button" data-ai-action="save">💾 ${c.save}</button><button type="button" data-ai-action="market">🔎 ${c.market}</button><button type="button" data-ai-action="price">€ ${c.price}</button><button type="button" data-ai-action="plan">📊 ${c.plan}</button><button type="button" data-ai-action="marketing">📣 ${c.marketing}</button></div>${historyHtml()}`;
+  result.innerHTML=`<div class="ai-response-badge">✨ ${c.badge}</div><div class="ai-response-text">${markdown(text)}</div><div class="ai-workflow-actions"><button type="button" data-ai-action="save">💾 ${c.save}</button><button type="button" data-ai-action="market">🔎 ${c.market}</button><button type="button" data-ai-action="price">€ ${c.price}</button><button type="button" data-ai-action="plan">📊 ${c.plan}</button><button type="button" data-ai-action="marketing">📣 ${c.marketing}</button></div>${historyHtml()}`;
   bindActions(question,text,structured);result.scrollIntoView({behavior:'smooth',block:'nearest'});
  }
- const style=document.createElement('style');style.textContent=`.ai-workflow-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}.ai-workflow-actions button{border:1px solid var(--line);background:#0b1a2c;color:var(--text);border-radius:11px;padding:10px 12px;font:inherit;font-weight:700;cursor:pointer}.ai-workflow-actions button:first-child{background:var(--accent);color:#07111f;border-color:var(--accent)}.ai-history{margin-top:16px;border-top:1px solid var(--line);padding-top:13px}.ai-history summary{cursor:pointer;font-weight:700;color:var(--muted)}.ai-history-list{display:grid;gap:8px;margin-top:10px}.ai-history-item{display:flex;justify-content:space-between;gap:12px;text-align:left;border:1px solid var(--line);background:#081625;color:var(--text);border-radius:10px;padding:10px;cursor:pointer}.ai-history-item span{font-size:.78rem;color:var(--muted);white-space:nowrap}.ai-history-empty{color:var(--muted)}@media(max-width:600px){.ai-workflow-actions button{width:100%}.ai-history-item{display:block}.ai-history-item span{display:block;margin-top:4px}}`;document.head.appendChild(style);
+ const style=document.createElement('style');style.textContent=`
+ .ai-response-text{line-height:1.58;overflow-wrap:anywhere}.ai-response-text h2,.ai-response-text h3,.ai-response-text h4,.ai-response-text h5{margin:24px 0 10px;line-height:1.25;color:var(--text)}.ai-response-text h2{font-size:1.45rem}.ai-response-text h3{font-size:1.25rem}.ai-response-text h4,.ai-response-text h5{font-size:1.08rem}.ai-response-text p{margin:10px 0}.ai-response-text ul,.ai-response-text ol{margin:10px 0 16px;padding-left:24px}.ai-response-text li{margin:5px 0}.ai-response-text strong{color:var(--text)}.ai-response-text code{background:#071320;border:1px solid var(--line);border-radius:6px;padding:2px 5px;font-size:.92em}.ai-response-text blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:#091727;color:var(--muted);border-radius:0 10px 10px 0}.ai-response-text hr{border:0;border-top:1px solid var(--line);margin:22px 0}.ai-table-wrap{width:100%;overflow-x:auto;margin:14px 0 20px;border:1px solid var(--line);border-radius:12px}.ai-response-text table{width:100%;border-collapse:collapse;min-width:480px;background:#081625}.ai-response-text th,.ai-response-text td{padding:10px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:left;vertical-align:top}.ai-response-text th:last-child,.ai-response-text td:last-child{border-right:0}.ai-response-text tbody tr:last-child td{border-bottom:0}.ai-response-text th{background:#0b1a2c;color:var(--text)}
+ .ai-workflow-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}.ai-workflow-actions button{border:1px solid var(--line);background:#0b1a2c;color:var(--text);border-radius:11px;padding:10px 12px;font:inherit;font-weight:700;cursor:pointer}.ai-workflow-actions button:first-child{background:var(--accent);color:#07111f;border-color:var(--accent)}.ai-history{margin-top:16px;border-top:1px solid var(--line);padding-top:13px}.ai-history summary{cursor:pointer;font-weight:700;color:var(--muted)}.ai-history-list{display:grid;gap:8px;margin-top:10px}.ai-history-item{display:flex;justify-content:space-between;gap:12px;text-align:left;border:1px solid var(--line);background:#081625;color:var(--text);border-radius:10px;padding:10px;cursor:pointer}.ai-history-item span{font-size:.78rem;color:var(--muted);white-space:nowrap}.ai-history-empty{color:var(--muted)}@media(max-width:600px){.ai-workflow-actions button{width:100%}.ai-history-item{display:block}.ai-history-item span{display:block;margin-top:4px}.ai-table-wrap{margin-left:0;margin-right:0}}
+ `;document.head.appendChild(style);
  const showError=detail=>{const c=t();console.warn('[BusinessAI AI]',detail);const extra=detail?`<br><small>${esc(c.code)}: ${esc(detail)}</small>`:'';result.hidden=false;result.dataset.ai='0';result.innerHTML=`<p>${esc(c.error)}${extra}</p>${historyHtml()}`;result.scrollIntoView({behavior:'smooth',block:'nearest'})};
  form.addEventListener('submit',async event=>{
   const url=endpoint();if(!url)return;event.preventDefault();event.stopImmediatePropagation();
