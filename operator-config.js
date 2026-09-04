@@ -5,11 +5,14 @@
   ico:'',
   address:'',
   email:'',
-  country:'Slovakia'
+  country:'Slovakia',
+  registered:false,
+  commercialReady:false,
+  mode:'mvp-testing'
  };
  const clean=v=>String(v??'').trim();
  const esc=v=>clean(v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
- const complete=()=>Boolean(clean(data.legalName)&&clean(data.address)&&clean(data.email));
+ const complete=()=>Boolean(data.registered&&clean(data.legalName)&&clean(data.address)&&clean(data.email));
  function lines(){
   const out=[];
   if(clean(data.legalName))out.push(clean(data.legalName));
