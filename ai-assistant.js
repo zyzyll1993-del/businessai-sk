@@ -3,6 +3,7 @@
  if(!form||!input||!result)return;
  const HISTORY_KEY='businessai-ai-history';
  const PROJECT_KEY='businessai-project';
+ let currentAI=null,restoreTimer=null;
  const endpoint=()=>String(window.BUSINESSAI_AI_ENDPOINT||localStorage.getItem('businessai-ai-endpoint')||'https://businessai-api.zyzyll1993.workers.dev/').trim();
  const lang=()=>{const v=localStorage.getItem('businessai-language')||document.documentElement.lang||'sk';return ['sk','uk','en'].includes(v)?v:'sk'};
  const copy={
@@ -87,17 +88,24 @@
   result.querySelector('[data-ai-action="marketing"]')?.addEventListener('click',()=>prefill('marketing',question,structured));
   const h=readHistory().slice(0,5);result.querySelectorAll('[data-ai-history]').forEach(btn=>btn.addEventListener('click',()=>{const item=h[Number(btn.dataset.aiHistory)];if(item){input.value=item.question;render(item.answer,item.question,item.structured,false)}}));
  }
- function render(text,question=input.value.trim(),structured=null,store=true){
-  const c=t();if(store)saveHistory({question,answer:text,structured:structured||null,createdAt:new Date().toISOString(),lang:lang()});
+ function render(text,question=input.value.trim(),structured=null,store=true,scroll=true){
+  const c=t();currentAI={question,answer:text,structured:structured||null};if(store)saveHistory({question,answer:text,structured:structured||null,createdAt:new Date().toISOString(),lang:lang()});
   result.hidden=false;result.dataset.ai='1';
   result.innerHTML=`<div class="ai-response-badge">✨ ${c.badge}</div><div class="ai-response-text">${markdown(text)}</div><div class="ai-workflow-actions"><button type="button" data-ai-action="save">💾 ${c.save}</button><button type="button" data-ai-action="market">🔎 ${c.market}</button><button type="button" data-ai-action="price">€ ${c.price}</button><button type="button" data-ai-action="plan">📊 ${c.plan}</button><button type="button" data-ai-action="marketing">📣 ${c.marketing}</button></div>${historyHtml()}`;
-  bindActions(question,text,structured);result.scrollIntoView({behavior:'smooth',block:'nearest'});
+  bindActions(question,text,structured);if(scroll)result.scrollIntoView({behavior:'smooth',block:'nearest'});
  }
+ function scheduleRestore(){
+  if(result.dataset.ai!=='1')return;
+  const snapshot=currentAI||readHistory()[0];if(!snapshot||!snapshot.answer)return;
+  clearTimeout(restoreTimer);restoreTimer=setTimeout(()=>{input.value=snapshot.question||input.value;render(snapshot.answer,snapshot.question||input.value,snapshot.structured||null,false,false)},0);
+ }
+ document.addEventListener('click',event=>{if(event.target.closest('[data-lang]'))scheduleRestore()},true);
+ window.addEventListener('businessai:language-changed',scheduleRestore);
  const style=document.createElement('style');style.textContent=`
  .ai-response-text{line-height:1.58;overflow-wrap:anywhere}.ai-response-text h2,.ai-response-text h3,.ai-response-text h4,.ai-response-text h5{margin:24px 0 10px;line-height:1.25;color:var(--text)}.ai-response-text h2{font-size:1.45rem}.ai-response-text h3{font-size:1.25rem}.ai-response-text h4,.ai-response-text h5{font-size:1.08rem}.ai-response-text p{margin:10px 0}.ai-response-text ul,.ai-response-text ol{margin:10px 0 16px;padding-left:24px}.ai-response-text li{margin:5px 0}.ai-response-text strong{color:var(--text)}.ai-response-text code{background:#071320;border:1px solid var(--line);border-radius:6px;padding:2px 5px;font-size:.92em}.ai-response-text blockquote{margin:14px 0;padding:10px 14px;border-left:3px solid var(--accent);background:#091727;color:var(--muted);border-radius:0 10px 10px 0}.ai-response-text hr{border:0;border-top:1px solid var(--line);margin:22px 0}.ai-table-wrap{width:100%;overflow-x:auto;margin:14px 0 20px;border:1px solid var(--line);border-radius:12px}.ai-response-text table{width:100%;border-collapse:collapse;min-width:480px;background:#081625}.ai-response-text th,.ai-response-text td{padding:10px 12px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:left;vertical-align:top}.ai-response-text th:last-child,.ai-response-text td:last-child{border-right:0}.ai-response-text tbody tr:last-child td{border-bottom:0}.ai-response-text th{background:#0b1a2c;color:var(--text)}
  .ai-workflow-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}.ai-workflow-actions button{border:1px solid var(--line);background:#0b1a2c;color:var(--text);border-radius:11px;padding:10px 12px;font:inherit;font-weight:700;cursor:pointer}.ai-workflow-actions button:first-child{background:var(--accent);color:#07111f;border-color:var(--accent)}.ai-history{margin-top:16px;border-top:1px solid var(--line);padding-top:13px}.ai-history summary{cursor:pointer;font-weight:700;color:var(--muted)}.ai-history-list{display:grid;gap:8px;margin-top:10px}.ai-history-item{display:flex;justify-content:space-between;gap:12px;text-align:left;border:1px solid var(--line);background:#081625;color:var(--text);border-radius:10px;padding:10px;cursor:pointer}.ai-history-item span{font-size:.78rem;color:var(--muted);white-space:nowrap}.ai-history-empty{color:var(--muted)}@media(max-width:600px){.ai-workflow-actions button{width:100%}.ai-history-item{display:block}.ai-history-item span{display:block;margin-top:4px}.ai-table-wrap{margin-left:0;margin-right:0}}
  `;document.head.appendChild(style);
- const showError=detail=>{const c=t();console.warn('[BusinessAI AI]',detail);const extra=detail?`<br><small>${esc(c.code)}: ${esc(detail)}</small>`:'';result.hidden=false;result.dataset.ai='0';result.innerHTML=`<p>${esc(c.error)}${extra}</p>${historyHtml()}`;result.scrollIntoView({behavior:'smooth',block:'nearest'})};
+ const showError=detail=>{const c=t();console.warn('[BusinessAI AI]',detail);const extra=detail?`<br><small>${esc(c.code)}: ${esc(detail)}</small>`:'';result.hidden=false;result.dataset.ai='0';currentAI=null;result.innerHTML=`<p>${esc(c.error)}${extra}</p>${historyHtml()}`;result.scrollIntoView({behavior:'smooth',block:'nearest'})};
  form.addEventListener('submit',async event=>{
   const url=endpoint();if(!url)return;event.preventDefault();event.stopImmediatePropagation();
   const question=input.value.trim();if(!question)return;
