@@ -31,6 +31,14 @@
   return{value,changed:false,types:[]};
  }
  window.BusinessAIPrivacy={ready:true,sanitizeText,sanitizeObject};
+ const nativeSetItem=Storage.prototype.setItem;
+ Storage.prototype.setItem=function(key,value){
+  if(this===localStorage&&(key===HISTORY_KEY||key===APPLY_KEY)&&typeof value==='string'){
+   try{const parsed=JSON.parse(value),safe=sanitizeObject(parsed);if(safe.changed)value=JSON.stringify(safe.value)}catch(_){}
+  }
+  return nativeSetItem.call(this,key,value);
+ };
+ for(const key of [HISTORY_KEY,APPLY_KEY]){try{const raw=localStorage.getItem(key);if(!raw)continue;const parsed=JSON.parse(raw),safe=sanitizeObject(parsed);if(safe.changed)nativeSetItem.call(localStorage,key,JSON.stringify(safe.value))}catch(_){}}
  const originalFetch=window.fetch.bind(window);
  window.fetch=async function(input,init={}){
   const url=typeof input==='string'?input:(input?.url||'');
