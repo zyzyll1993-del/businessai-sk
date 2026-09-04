@@ -33,24 +33,50 @@
    const p=[];while(i<lines.length&&lines[i].trim()&&!isBlockStart(lines,i)){p.push(lines[i]);i++}if(!p.length){p.push(lines[i]);i++}out.push(`<p>${p.map(inline).join('<br>')}</p>`)}
   return out.join('');
  }
+ function detectLanguage(text){
+  const s=` ${String(text||'').toLowerCase().replace(/\s+/g,' ')} `;
+  const cyr=(s.match(/[а-яіїєґ]/g)||[]).length;
+  if(/[іїєґ]/i.test(s)||cyr>Math.max(12,s.length*.04))return'uk';
+  let sk=(s.match(/[áäčďéíĺľňóôŕšťúýž]/g)||[]).length*3,en=0;
+  [' pre ',' rozpočet',' podnik',' uprat',' výhoda',' zákaz',' služ',' alebo ',' náklad',' prvých',' vyberám',' ako ',' cieľ',' ponúkni',' oblečen'].forEach(w=>{if(s.includes(w))sk+=2});
+  [' the ',' and ',' business',' budget',' customer',' cleaning',' service',' first ',' costs',' realistic',' choose ',' advantage',' offer ',' how ',' target ',' apartment'].forEach(w=>{if(s.includes(w))en+=2});
+  return sk>en?'sk':'en';
+ }
  function readHistory(){try{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(h)?h:[]}catch(_){return[]}}
  function locate(){const h=readHistory();if(!h.length)return null;const q=input.value.trim();let index=h.findIndex(x=>x&&x.question===q);if(index<0)index=0;return{history:h,index,item:h[index]}}
- function persist(found,translations){found.history[found.index]={...found.item,translations};localStorage.setItem(HISTORY_KEY,JSON.stringify(found.history));window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))}
+ function persist(found,translations,detectedLang){found.history[found.index]={...found.item,translations,detectedLang};localStorage.setItem(HISTORY_KEY,JSON.stringify(found.history));window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))}
  function status(text,isError=false){let el=result.querySelector('.ai-translation-status');if(!el){el=document.createElement('div');el.className='ai-translation-status';const badge=result.querySelector('.ai-response-badge');badge?.insertAdjacentElement('afterend',el)}if(el){el.textContent=text;el.dataset.error=isError?'1':'0'}}
  function clearStatus(){result.querySelector('.ai-translation-status')?.remove()}
  function paint(text){const body=result.querySelector('.ai-response-text');if(!body)return false;body.innerHTML=markdown(text);clearStatus();return true}
- function chunks(text,max=2800){const blocks=String(text||'').split(/\n{2,}/),out=[];let current='';const push=()=>{if(current.trim()){out.push(current.trim());current=''}};for(const block of blocks){if(block.length>max){push();const lines=block.split('\n');let part='';for(const line of lines){if((part+'\n'+line).length>max){if(part.trim())out.push(part.trim());if(line.length>max){for(let i=0;i<line.length;i+=max)out.push(line.slice(i,i+max)) ;part=''}else part=line}else part+=(part?'\n':'')+line}if(part.trim())out.push(part.trim());continue}const candidate=current?current+'\n\n'+block:block;if(candidate.length>max){push();current=block}else current=candidate}push();return out.length?out:['']}
- async function translateChunk(text,target){const prompt=`Translate ONLY the text below into ${targetNames[target]}. Preserve all Markdown formatting, headings, bullet lists, numbered lists, tables, numbers, euro amounts, names and meaning. Do not summarize, explain, add facts or add commentary. Return only the translated text.\n\nTEXT:\n${text}`;const response=await fetch(endpoint(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:prompt,module:'translation',lang:target,project:null})});let data=null;try{data=await response.json()}catch(_){data=null}if(!response.ok)throw new Error([`HTTP ${response.status}`,data?.status?`provider ${data.status}`:'',data?.error||''].filter(Boolean).join(' · '));if(!data||typeof data.answer!=='string'||!data.answer.trim())throw new Error('Invalid translation response');return data.answer.trim()}
+ function chunks(text,max=2800){const blocks=String(text||'').split(/\n{2,}/),out=[];let current='';const push=()=>{if(current.trim()){out.push(current.trim());current=''}};for(const block of blocks){if(block.length>max){push();const lines=block.split('\n');let part='';for(const line of lines){if((part+'\n'+line).length>max){if(part.trim())out.push(part.trim());if(line.length>max){for(let i=0;i<line.length;i+=max)out.push(line.slice(i,i+max));part=''}else part=line}else part+=(part?'\n':'')+line}if(part.trim())out.push(part.trim());continue}const candidate=current?current+'\n\n'+block:block;if(candidate.length>max){push();current=block}else current=candidate}push();return out.length?out:['']}
+ async function translateChunk(text,target){
+  const prompt=`Translate ONLY the text below into ${targetNames[target]}. Preserve all Markdown formatting, headings, bullet lists, numbered lists, tables, numbers, euro amounts, names and meaning. Do not summarize, explain, add facts or add commentary. Return only the translated text.\n\nTEXT:\n${text}`;
+  const response=await fetch(endpoint(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:prompt,module:'translation',lang:target,project:null})});
+  let data=null;try{data=await response.json()}catch(_){data=null}
+  if(!response.ok)throw new Error([`HTTP ${response.status}`,data?.status?`provider ${data.status}`:'',data?.error||''].filter(Boolean).join(' · '));
+  if(!data||typeof data.answer!=='string'||!data.answer.trim())throw new Error('Invalid translation response');
+  return data.answer.trim();
+ }
  async function translateVisible(target){
   const seq=++requestSeq,found=locate();if(!found||!found.item?.answer)return;
-  const item=found.item,source=item.lang&&supported.includes(item.lang)?item.lang:null,translations={...(item.translations||{})};if(source&&!translations[source])translations[source]=item.answer;
-  if(translations[target]){setTimeout(()=>{if(seq===requestSeq&&lang()===target)paint(translations[target])},0);return}
-  if(source===target||(!source&&target===(item.lang||target))){translations[target]=item.answer;persist(found,translations);setTimeout(()=>{if(seq===requestSeq&&lang()===target)paint(item.answer)},0);return}
+  const item=found.item,original=item.answer,detected=detectLanguage(original),translations={...(item.translations||{})};
+  if(!translations[detected]||detectLanguage(translations[detected])!==detected)translations[detected]=original;
+  if(translations[target]&&detectLanguage(translations[target])===target){if(seq===requestSeq&&lang()===target)paint(translations[target]);return}
+  if(translations[target])delete translations[target];
+  if(detected===target){translations[target]=original;persist(found,translations,detected);if(seq===requestSeq&&lang()===target)paint(original);return}
   status((labels[target]||labels.sk).loading);
-  try{const translated=[];for(const part of chunks(item.answer)){if(seq!==requestSeq)return;translated.push(await translateChunk(part,target))}if(seq!==requestSeq)return;const text=translated.join('\n\n');translations[target]=text;persist(found,translations);if(lang()===target)paint(text)}catch(error){console.warn('[BusinessAI translation]',error);if(seq===requestSeq)status(`${(labels[target]||labels.sk).error} ${error?.message||''}`.trim(),true)}
+  try{
+   const translated=[];for(const part of chunks(original)){if(seq!==requestSeq)return;translated.push(await translateChunk(part,target))}
+   if(seq!==requestSeq)return;
+   const text=translated.join('\n\n');
+   if(detectLanguage(text)!==target)throw new Error('Returned text is not in the selected language');
+   translations[target]=text;persist(found,translations,detected);if(lang()===target)paint(text);
+  }catch(error){console.warn('[BusinessAI translation]',error);if(seq===requestSeq)status(`${(labels[target]||labels.sk).error} ${error?.message||''}`.trim(),true)}
  }
- function schedule(target=lang()){clearTimeout(timer);timer=setTimeout(()=>{if(result.dataset.ai==='1'||result.querySelector('.ai-response-text'))translateVisible(target)},180)}
+ function schedule(target=lang(),delay=180){clearTimeout(timer);timer=setTimeout(()=>{if(result.dataset.ai==='1'||result.querySelector('.ai-response-text'))translateVisible(target)},delay)}
  window.addEventListener('businessai:language-changed',event=>{const target=event.detail?.lang||lang();if(supported.includes(target))schedule(target)});
+ window.addEventListener('businessai:ai-history-changed',()=>schedule(lang(),80));
  document.addEventListener('click',event=>{const btn=event.target.closest('[data-lang]');if(btn&&supported.includes(btn.dataset.lang))schedule(btn.dataset.lang)},false);
+ setTimeout(()=>schedule(lang(),0),350);
  const style=document.createElement('style');style.textContent='.ai-translation-status{margin:10px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#081625;color:var(--muted);font-size:.88rem}.ai-translation-status[data-error="1"]{color:#ffb4b4}';document.head.appendChild(style);
 })();
