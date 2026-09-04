@@ -1,82 +1,35 @@
 (()=>{
- const result=document.querySelector('#result'),input=document.querySelector('#business-input');
- if(!result||!input)return;
- const HISTORY_KEY='businessai-ai-history';
+ const result=document.querySelector('#result');
+ if(!result)return;
  const supported=['sk','uk','en'];
- let timer=null,requestSeq=0;
  const endpoint=()=>String(window.BUSINESSAI_AI_ENDPOINT||localStorage.getItem('businessai-ai-endpoint')||'https://businessai-api.zyzyll1993.workers.dev/').trim();
  const lang=()=>{const v=localStorage.getItem('businessai-language')||document.documentElement.lang||'sk';return supported.includes(v)?v:'sk'};
  const labels={
-  sk:{loading:'Prekladám AI odpoveď…',error:'Preklad sa nepodaril. Zobrazuje sa posledná dostupná verzia.'},
-  uk:{loading:'Перекладаю AI-відповідь…',error:'Не вдалося перекласти. Показано останню доступну версію.'},
-  en:{loading:'Translating AI response…',error:'Translation failed. Showing the last available version.'}
+  sk:{loading:'Prekladám AI odpoveď…',error:'Preklad sa nepodaril.',ready:'Preložené do slovenčiny'},
+  uk:{loading:'Перекладаю AI-відповідь…',error:'Не вдалося перекласти відповідь.',ready:'Перекладено українською'},
+  en:{loading:'Translating AI response…',error:'Could not translate the response.',ready:'Translated to English'}
  };
- const targetNames={sk:'Slovak',uk:'Ukrainian',en:'English'};
- const esc=value=>{const div=document.createElement('div');div.textContent=String(value??'');return div.innerHTML};
- const inline=value=>esc(value)
-  .replace(/`([^`]+)`/g,'<code>$1</code>')
-  .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
-  .replace(/__([^_]+)__/g,'<strong>$1</strong>')
-  .replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
- const tableCells=line=>line.trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim());
- const isTableDivider=line=>/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
- const isBlockStart=(lines,i)=>{const line=lines[i]||'',next=lines[i+1]||'';return /^#{1,4}\s+/.test(line)||/^\s*[-*+]\s+/.test(line)||/^\s*\d+[.)]\s+/.test(line)||/^\s*>\s?/.test(line)||/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)||(line.includes('|')&&isTableDivider(next))};
- function markdown(text){
-  const lines=String(text??'').replace(/\r\n?/g,'\n').split('\n'),out=[];let i=0;
-  while(i<lines.length){const line=lines[i];if(!line.trim()){i++;continue}
-   const heading=line.match(/^(#{1,4})\s+(.+)$/);if(heading){const level=Math.min(4,heading[1].length+1);out.push(`<h${level}>${inline(heading[2])}</h${level}>`);i++;continue}
-   if(/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)){out.push('<hr>');i++;continue}
-   if(line.includes('|')&&isTableDivider(lines[i+1]||'')){const head=tableCells(line);i+=2;const rows=[];while(i<lines.length&&lines[i].trim()&&lines[i].includes('|')&&!isTableDivider(lines[i])){rows.push(tableCells(lines[i]));i++}const width=Math.max(head.length,...rows.map(r=>r.length),1);while(head.length<width)head.push('');rows.forEach(r=>{while(r.length<width)r.push('')});out.push(`<div class="ai-table-wrap"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);continue}
-   if(/^\s*[-*+]\s+/.test(line)){const items=[];while(i<lines.length){const m=lines[i].match(/^\s*[-*+]\s+(.+)$/);if(!m)break;items.push(m[1]);i++}out.push(`<ul>${items.map(x=>`<li>${inline(x)}</li>`).join('')}</ul>`);continue}
-   if(/^\s*\d+[.)]\s+/.test(line)){const items=[];while(i<lines.length){const m=lines[i].match(/^\s*\d+[.)]\s+(.+)$/);if(!m)break;items.push(m[1]);i++}out.push(`<ol>${items.map(x=>`<li>${inline(x)}</li>`).join('')}</ol>`);continue}
-   if(/^\s*>\s?/.test(line)){const parts=[];while(i<lines.length){const m=lines[i].match(/^\s*>\s?(.*)$/);if(!m)break;parts.push(m[1]);i++}out.push(`<blockquote>${parts.map(inline).join('<br>')}</blockquote>`);continue}
-   const p=[];while(i<lines.length&&lines[i].trim()&&!isBlockStart(lines,i)){p.push(lines[i]);i++}if(!p.length){p.push(lines[i]);i++}out.push(`<p>${p.map(inline).join('<br>')}</p>`)}
-  return out.join('');
- }
- function detectLanguage(text){
-  const s=` ${String(text||'').toLowerCase().replace(/\s+/g,' ')} `;
-  const cyr=(s.match(/[а-яіїєґ]/g)||[]).length;
-  if(/[іїєґ]/i.test(s)||cyr>Math.max(12,s.length*.04))return'uk';
-  let sk=(s.match(/[áäčďéíĺľňóôŕšťúýž]/g)||[]).length*3,en=0;
-  [' pre ',' rozpočet',' podnik',' uprat',' výhoda',' zákaz',' služ',' alebo ',' náklad',' prvých',' vyberám',' ako ',' cieľ',' ponúkni',' oblečen'].forEach(w=>{if(s.includes(w))sk+=2});
-  [' the ',' and ',' business',' budget',' customer',' cleaning',' service',' first ',' costs',' realistic',' choose ',' advantage',' offer ',' how ',' target ',' apartment'].forEach(w=>{if(s.includes(w))en+=2});
-  return sk>en?'sk':'en';
- }
- function readHistory(){try{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');return Array.isArray(h)?h:[]}catch(_){return[]}}
- function locate(){const h=readHistory();if(!h.length)return null;const q=input.value.trim();let index=h.findIndex(x=>x&&x.question===q);if(index<0)index=0;return{history:h,index,item:h[index]}}
- function persist(found,translations,detectedLang){found.history[found.index]={...found.item,translations,detectedLang};localStorage.setItem(HISTORY_KEY,JSON.stringify(found.history));window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))}
- function status(text,isError=false){let el=result.querySelector('.ai-translation-status');if(!el){el=document.createElement('div');el.className='ai-translation-status';const badge=result.querySelector('.ai-response-badge');badge?.insertAdjacentElement('afterend',el)}if(el){el.textContent=text;el.dataset.error=isError?'1':'0'}}
- function clearStatus(){result.querySelector('.ai-translation-status')?.remove()}
- function paint(text){const body=result.querySelector('.ai-response-text');if(!body)return false;body.innerHTML=markdown(text);clearStatus();return true}
- function chunks(text,max=2800){const blocks=String(text||'').split(/\n{2,}/),out=[];let current='';const push=()=>{if(current.trim()){out.push(current.trim());current=''}};for(const block of blocks){if(block.length>max){push();const lines=block.split('\n');let part='';for(const line of lines){if((part+'\n'+line).length>max){if(part.trim())out.push(part.trim());if(line.length>max){for(let i=0;i<line.length;i+=max)out.push(line.slice(i,i+max));part=''}else part=line}else part+=(part?'\n':'')+line}if(part.trim())out.push(part.trim());continue}const candidate=current?current+'\n\n'+block:block;if(candidate.length>max){push();current=block}else current=candidate}push();return out.length?out:['']}
- async function translateChunk(text,target){
-  const prompt=`Translate ONLY the text below into ${targetNames[target]}. Preserve all Markdown formatting, headings, bullet lists, numbered lists, tables, numbers, euro amounts, names and meaning. Do not summarize, explain, add facts or add commentary. Return only the translated text.\n\nTEXT:\n${text}`;
-  const response=await fetch(endpoint(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:prompt,module:'translation',lang:target,project:null})});
-  let data=null;try{data=await response.json()}catch(_){data=null}
-  if(!response.ok)throw new Error([`HTTP ${response.status}`,data?.status?`provider ${data.status}`:'',data?.error||''].filter(Boolean).join(' · '));
-  if(!data||typeof data.answer!=='string'||!data.answer.trim())throw new Error('Invalid translation response');
-  return data.answer.trim();
- }
- async function translateVisible(target){
-  const seq=++requestSeq,found=locate();if(!found||!found.item?.answer)return;
-  const item=found.item,original=item.answer,detected=detectLanguage(original),translations={...(item.translations||{})};
-  if(!translations[detected]||detectLanguage(translations[detected])!==detected)translations[detected]=original;
-  if(translations[target]&&detectLanguage(translations[target])===target){if(seq===requestSeq&&lang()===target)paint(translations[target]);return}
-  if(translations[target])delete translations[target];
-  if(detected===target){translations[target]=original;persist(found,translations,detected);if(seq===requestSeq&&lang()===target)paint(original);return}
-  status((labels[target]||labels.sk).loading);
-  try{
-   const translated=[];for(const part of chunks(original)){if(seq!==requestSeq)return;translated.push(await translateChunk(part,target))}
-   if(seq!==requestSeq)return;
-   const text=translated.join('\n\n');
-   if(detectLanguage(text)!==target)throw new Error('Returned text is not in the selected language');
-   translations[target]=text;persist(found,translations,detected);if(lang()===target)paint(text);
-  }catch(error){console.warn('[BusinessAI translation]',error);if(seq===requestSeq)status(`${(labels[target]||labels.sk).error} ${error?.message||''}`.trim(),true)}
- }
- function schedule(target=lang(),delay=180){clearTimeout(timer);timer=setTimeout(()=>{if(result.dataset.ai==='1'||result.querySelector('.ai-response-text'))translateVisible(target)},delay)}
- window.addEventListener('businessai:language-changed',event=>{const target=event.detail?.lang||lang();if(supported.includes(target))schedule(target)});
- window.addEventListener('businessai:ai-history-changed',()=>schedule(lang(),80));
- document.addEventListener('click',event=>{const btn=event.target.closest('[data-lang]');if(btn&&supported.includes(btn.dataset.lang))schedule(btn.dataset.lang)},false);
- setTimeout(()=>schedule(lang(),0),350);
+ const names={sk:'Slovak',uk:'Ukrainian',en:'English'};
+ let source='',sourceLang='',translations={},seq=0,timer=null,ignoreUntil=0;
+ const esc=value=>{const d=document.createElement('div');d.textContent=String(value??'');return d.innerHTML};
+ const inline=value=>esc(value).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+ const cells=line=>line.trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim());
+ const divider=line=>/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+ const block=(lines,i)=>{const line=lines[i]||'',next=lines[i+1]||'';return /^#{1,4}\s+/.test(line)||/^\s*[-*+]\s+/.test(line)||/^\s*\d+[.)]\s+/.test(line)||/^\s*>\s?/.test(line)||/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)||(line.includes('|')&&divider(next))};
+ function markdown(text){const lines=String(text||'').replace(/\r\n?/g,'\n').split('\n'),out=[];let i=0;while(i<lines.length){const line=lines[i];if(!line.trim()){i++;continue}const h=line.match(/^(#{1,4})\s+(.+)$/);if(h){const n=Math.min(5,h[1].length+1);out.push(`<h${n}>${inline(h[2])}</h${n}>`);i++;continue}if(/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)){out.push('<hr>');i++;continue}if(line.includes('|')&&divider(lines[i+1]||'')){const head=cells(line);i+=2;const rows=[];while(i<lines.length&&lines[i].trim()&&lines[i].includes('|')&&!divider(lines[i])){rows.push(cells(lines[i]));i++}out.push(`<div class="ai-table-wrap"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);continue}if(/^\s*[-*+]\s+/.test(line)){const a=[];while(i<lines.length){const m=lines[i].match(/^\s*[-*+]\s+(.+)$/);if(!m)break;a.push(m[1]);i++}out.push(`<ul>${a.map(x=>`<li>${inline(x)}</li>`).join('')}</ul>`);continue}if(/^\s*\d+[.)]\s+/.test(line)){const a=[];while(i<lines.length){const m=lines[i].match(/^\s*\d+[.)]\s+(.+)$/);if(!m)break;a.push(m[1]);i++}out.push(`<ol>${a.map(x=>`<li>${inline(x)}</li>`).join('')}</ol>`);continue}if(/^\s*>\s?/.test(line)){const a=[];while(i<lines.length){const m=lines[i].match(/^\s*>\s?(.*)$/);if(!m)break;a.push(m[1]);i++}out.push(`<blockquote>${a.map(inline).join('<br>')}</blockquote>`);continue}const p=[];while(i<lines.length&&lines[i].trim()&&!block(lines,i)){p.push(lines[i]);i++}if(!p.length){p.push(lines[i]);i++}out.push(`<p>${p.map(inline).join('<br>')}</p>`)}return out.join('')}
+ function detect(text){const s=` ${String(text||'').toLowerCase().replace(/\s+/g,' ')} `;if(/[іїєґ]/i.test(s))return'uk';const cyr=(s.match(/[а-я]/g)||[]).length;if(cyr>20)return'uk';let sk=(s.match(/[áäčďéíĺľňóôŕšťúýž]/g)||[]).length*3,en=0;[' pre ',' rozpočet',' podnik',' uprat',' výhoda',' zákaz',' služ',' alebo ',' náklad',' prvých',' ako ',' cena ',' cieľ'].forEach(w=>{if(s.includes(w))sk+=2});[' the ',' and ',' business',' budget',' customer',' cleaning',' service',' first ',' costs',' realistic',' advantage',' offer ',' how ',' price ',' goal '].forEach(w=>{if(s.includes(w))en+=2});return sk>en?'sk':'en'}
+ function serialize(root){const out=[];const txt=e=>(e?.innerText||e?.textContent||'').trim();for(const el of root.children){const tag=el.tagName;if(/^H[2-5]$/.test(tag)){out.push('#'.repeat(Math.max(1,Number(tag[1])-1))+' '+txt(el));continue}if(tag==='P'){out.push(txt(el));continue}if(tag==='UL'){out.push([...el.querySelectorAll(':scope > li')].map(li=>'- '+txt(li)).join('\n'));continue}if(tag==='OL'){out.push([...el.querySelectorAll(':scope > li')].map((li,i)=>`${i+1}. ${txt(li)}`).join('\n'));continue}if(tag==='BLOCKQUOTE'){out.push('> '+txt(el).replace(/\n/g,'\n> '));continue}if(el.classList.contains('ai-table-wrap')){const table=el.querySelector('table');if(table){const rows=[...table.querySelectorAll('tr')].map(tr=>[...tr.children].map(c=>txt(c)));if(rows.length){out.push('| '+rows[0].join(' | ')+' |');out.push('| '+rows[0].map(()=> '---').join(' | ')+' |');rows.slice(1).forEach(r=>out.push('| '+r.join(' | ')+' |'))}continue}}if(tag==='HR'){out.push('---');continue}const v=txt(el);if(v)out.push(v)}return out.filter(Boolean).join('\n\n').trim()}
+ function status(text,error=false){let el=result.querySelector('.ai-translation-status');if(!el){el=document.createElement('div');el.className='ai-translation-status';result.querySelector('.ai-response-badge')?.insertAdjacentElement('afterend',el)}if(el){el.textContent=text;el.dataset.error=error?'1':'0'}}
+ function clear(){result.querySelector('.ai-translation-status')?.remove()}
+ function capture(force=false){if(Date.now()<ignoreUntil&&!force)return false;const body=result.querySelector('.ai-response-text');if(!body)return false;const text=serialize(body);if(!text)return false;const d=detect(text);if(!source||force){source=text;sourceLang=d;translations={[d]:text};return true}if(text===source||Object.values(translations).includes(text))return true;if(d===sourceLang){source=text;translations[sourceLang]=text;return true}return false}
+ function paint(text){const body=result.querySelector('.ai-response-text');if(!body)return;ignoreUntil=Date.now()+900;body.innerHTML=markdown(text);clear()}
+ function chunks(text,max=3000){const blocks=String(text||'').split(/\n{2,}/),out=[];let cur='';for(const b of blocks){const next=cur?cur+'\n\n'+b:b;if(next.length>max&&cur){out.push(cur);cur=b}else cur=next}if(cur)out.push(cur);return out}
+ async function ask(part,target){const prompt=`Translate the following BusinessAI answer into ${names[target]}. Keep the same meaning and structure. Preserve Markdown headings, lists, tables, numbers, names and euro amounts. Do not summarize, add advice or explain anything. Return only the translated answer.\n\n${part}`;const r=await fetch(endpoint(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:prompt,module:'translation',lang:target,project:null})});let data=null;try{data=await r.json()}catch(_){data=null}if(!r.ok)throw new Error([`HTTP ${r.status}`,data?.status?`provider ${data.status}`:'',data?.error||''].filter(Boolean).join(' · '));if(!data?.answer?.trim())throw new Error('Empty translation');return data.answer.trim()}
+ async function translate(target){const id=++seq;if(!supported.includes(target))return;if(!source&&!capture(true))return;if(translations[target]){paint(translations[target]);return}if(sourceLang===target){paint(source);return}status((labels[target]||labels.sk).loading);try{const parts=[];for(const part of chunks(source)){if(id!==seq)return;parts.push(await ask(part,target))}if(id!==seq)return;const text=parts.join('\n\n');translations[target]=text;if(lang()===target){paint(text);status((labels[target]||labels.sk).ready);setTimeout(clear,900)}}catch(e){console.warn('[BusinessAI translation]',e);if(id===seq)status(`${(labels[target]||labels.sk).error} ${e?.message||''}`.trim(),true)}}
+ function schedule(target,delay=250){clearTimeout(timer);timer=setTimeout(()=>translate(target||lang()),delay)}
+ const observer=new MutationObserver(()=>{if(Date.now()<ignoreUntil)return;const body=result.querySelector('.ai-response-text');if(body&&!source)capture(true)});observer.observe(result,{subtree:true,childList:true});
+ window.addEventListener('businessai:language-changed',e=>{const target=e.detail?.lang||lang();if(supported.includes(target))schedule(target,300)});
+ document.addEventListener('click',e=>{const b=e.target.closest('[data-lang]');if(b&&supported.includes(b.dataset.lang))schedule(b.dataset.lang,320)});
+ setTimeout(()=>capture(true),500);
  const style=document.createElement('style');style.textContent='.ai-translation-status{margin:10px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#081625;color:var(--muted);font-size:.88rem}.ai-translation-status[data-error="1"]{color:#ffb4b4}';document.head.appendChild(style);
 })();
