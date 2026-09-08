@@ -8,17 +8,15 @@
   en:{eyebrow:'Current focus',title:'Next action',lead:'BusinessAI shows the first unfinished action from your 30-day Autoplan.',week:'Week',progress:'Progress',done:'Mark as done',open:'Open Week',empty:'Create and apply an AI Autoplan first.',openAi:'Open AI assistant',complete:'All actions in the current 30-day plan are complete.',great:'Plan complete',focus:'Focus'}
  };
  const t=()=>C[lang()]||C.sk;
- const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+ const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
  const projectId=()=>{try{const x=JSON.parse(localStorage.getItem(PROJECTS_KEY)||'{}');if(x?.activeId)return String(x.activeId)}catch(_){}return'legacy'};
  function read(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return x&&x.byProject&&typeof x.byProject==='object'?x:{version:1,byProject:{}}}catch(_){return{version:1,byProject:{}}}}
  function write(state){localStorage.setItem(KEY,JSON.stringify(state))}
  function entry(){return read().byProject[projectId()]||null}
  function stats(e){const tasks=(e?.weeks||[]).flatMap(w=>(w.tasks||[]).map(task=>({week:w.week,focus:w.focus||'',...task})));const done=tasks.filter(x=>x.done).length,total=tasks.length;return{tasks,done,total,pct:total?Math.round(done/total*100):0,next:tasks.find(x=>!x.done)||null}}
  function host(){const card=document.querySelector('#business-workspace .workspace-card');if(!card)return null;let box=card.querySelector('.next-action-card');if(!box){box=document.createElement('div');box.className='next-action-card';const form=card.querySelector('.workspace-form');if(form)card.insertBefore(box,form);else card.appendChild(box)}return box}
- function markDone(task){const state=read(),id=projectId(),e=state.byProject[id];if(!e)return;const week=(e.weeks||[]).find(w=>Number(w.week)===Number(task.week)),stored=week?.tasks?.find(x=>x.key===task.key);if(!stored)return;stored.done=true;e.updatedAt=new Date().toISOString();write(state);
-  const selector=`#weekly-review [data-progress-week="${String(task.week).replace(/"/g,'')}" ][data-progress-key="${CSS.escape(task.key)}"]`;
-  const checkbox=document.querySelector(selector);if(checkbox&&!checkbox.checked){checkbox.checked=true;checkbox.dispatchEvent(new Event('change',{bubbles:true}))}
-  window.dispatchEvent(new CustomEvent('businessai:autoplan-progress-changed',{detail:{projectId:id,taskKey:task.key}}));render()}
+ function syncVisibleTracker(task){const checkbox=[...document.querySelectorAll('#weekly-review [data-progress-key]')].find(el=>String(el.dataset.progressWeek)===String(task.week)&&el.dataset.progressKey===task.key);if(checkbox&&!checkbox.checked){checkbox.checked=true;checkbox.dispatchEvent(new Event('change',{bubbles:true}))}}
+ function markDone(task){const state=read(),id=projectId(),e=state.byProject[id];if(!e)return;const week=(e.weeks||[]).find(w=>Number(w.week)===Number(task.week)),stored=week?.tasks?.find(x=>x.key===task.key);if(!stored)return;stored.done=true;e.updatedAt=new Date().toISOString();write(state);syncVisibleTracker(task);window.dispatchEvent(new CustomEvent('businessai:autoplan-progress-changed',{detail:{projectId:id,taskKey:task.key}}));render()}
  function openWeek(){if(window.BusinessAITabs?.open)window.BusinessAITabs.open('review');else location.hash='#workspace-review'}
  function openAI(){if(window.BusinessAITabs?.open)window.BusinessAITabs.open('ai');else location.hash='#workspace-ai'}
  function render(){const box=host();if(!box)return;const c=t(),e=entry();if(!e){box.innerHTML=`<div class="next-action-head"><div><p class="eyebrow">${c.eyebrow}</p><h3>▶ ${c.title}</h3><p>${c.lead}</p></div></div><div class="next-action-empty"><span>${c.empty}</span><button type="button" class="btn secondary" data-next-open-ai>${c.openAi}</button></div>`;box.querySelector('[data-next-open-ai]')?.addEventListener('click',openAI);return}
