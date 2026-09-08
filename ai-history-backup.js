@@ -1,5 +1,5 @@
 (()=>{
- const AI_KEY='businessai-ai-history',AUTOPLAN_KEY='businessai-ai-autoplan',PROJECTS_KEY='businessai-projects-v1',AUTOPLAN_HISTORY_KEY='businessai-autoplan-history-v1';
+ const AI_KEY='businessai-ai-history',AUTOPLAN_KEY='businessai-ai-autoplan',PROJECTS_KEY='businessai-projects-v1',AUTOPLAN_HISTORY_KEY='businessai-autoplan-history-v1',AUTOPLAN_PROGRESS_KEY='businessai-autoplan-progress-v1';
  const read=(key,fallback)=>{try{const v=JSON.parse(localStorage.getItem(key)||fallback);return v}catch(_){return JSON.parse(fallback)}};
  const projectFromForm=()=>{
   const stored=read('businessai-project','{}')||{};
@@ -16,11 +16,11 @@
   };
  };
  const lang=()=>localStorage.getItem('businessai-language')||document.documentElement.lang||'sk';
- const statusText=()=>lang()==='uk'?'Повну копію з проєктами, історією AI та версіями Автоплану підготовлено':lang()==='en'?'Full backup with projects, AI history and Autoplan versions prepared':'Úplná záloha s projektmi, AI históriou a verziami Autoplánu je pripravená';
+ const statusText=()=>lang()==='uk'?'Повну копію з проєктами, AI та прогресом Автоплану підготовлено':lang()==='en'?'Full backup with projects, AI and Autoplan progress prepared':'Úplná záloha s projektmi, AI a progresom Autoplánu je pripravená';
  const status=text=>{const el=document.querySelector('#business-workspace .workspace-status');if(!el)return;el.textContent=text;setTimeout(()=>{if(el.textContent===text)el.textContent=''},1800)};
  const makeBackup=()=>({
   format:'businessai-sk-backup',
-  version:6,
+  version:7,
   createdAt:new Date().toISOString(),
   language:lang(),
   project:projectFromForm(),
@@ -31,6 +31,7 @@
   aiHistory:read(AI_KEY,'[]'),
   aiAutoplan:read(AUTOPLAN_KEY,'null'),
   autoplanHistory:read(AUTOPLAN_HISTORY_KEY,'{"version":1,"byProject":{}}'),
+  autoplanProgress:read(AUTOPLAN_PROGRESS_KEY,'{"version":1,"byProject":{}}'),
   projectLibrary:read(PROJECTS_KEY,'{"version":1,"activeId":null,"projects":[]}')
  });
  document.addEventListener('click',event=>{
@@ -46,6 +47,6 @@
  document.addEventListener('change',event=>{
   const input=event.target.closest('#ws-file');if(!input)return;
   const file=input.files?.[0];if(!file)return;
-  const reader=new FileReader();reader.onload=()=>{try{const payload=JSON.parse(String(reader.result||''));if(Array.isArray(payload?.aiHistory)){localStorage.setItem(AI_KEY,JSON.stringify(payload.aiHistory));window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))}if(payload?.aiAutoplan&&typeof payload.aiAutoplan==='object')localStorage.setItem(AUTOPLAN_KEY,JSON.stringify(payload.aiAutoplan));if(payload?.autoplanHistory&&payload.autoplanHistory.byProject&&typeof payload.autoplanHistory.byProject==='object')localStorage.setItem(AUTOPLAN_HISTORY_KEY,JSON.stringify(payload.autoplanHistory));if(payload?.projectLibrary&&Array.isArray(payload.projectLibrary.projects))localStorage.setItem(PROJECTS_KEY,JSON.stringify(payload.projectLibrary))}catch(_){}};reader.readAsText(file);
+  const reader=new FileReader();reader.onload=()=>{try{const payload=JSON.parse(String(reader.result||''));if(Array.isArray(payload?.aiHistory)){localStorage.setItem(AI_KEY,JSON.stringify(payload.aiHistory));window.dispatchEvent(new CustomEvent('businessai:ai-history-changed'))}if(payload?.aiAutoplan&&typeof payload.aiAutoplan==='object')localStorage.setItem(AUTOPLAN_KEY,JSON.stringify(payload.aiAutoplan));if(payload?.autoplanHistory&&payload.autoplanHistory.byProject&&typeof payload.autoplanHistory.byProject==='object')localStorage.setItem(AUTOPLAN_HISTORY_KEY,JSON.stringify(payload.autoplanHistory));if(payload?.autoplanProgress&&payload.autoplanProgress.byProject&&typeof payload.autoplanProgress.byProject==='object')localStorage.setItem(AUTOPLAN_PROGRESS_KEY,JSON.stringify(payload.autoplanProgress));if(payload?.projectLibrary&&Array.isArray(payload.projectLibrary.projects))localStorage.setItem(PROJECTS_KEY,JSON.stringify(payload.projectLibrary))}catch(_){}};reader.readAsText(file);
  },true);
 })();
