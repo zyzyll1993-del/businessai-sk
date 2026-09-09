@@ -1,0 +1,28 @@
+(()=>{
+ const COACH_KEY='businessai-weekly-coach-v1',PROGRESS_KEY='businessai-autoplan-progress-v1',PROJECTS_KEY='businessai-projects-v1';
+ const supported=['sk','uk','en'];
+ const lang=()=>{const v=localStorage.getItem('businessai-language')||document.documentElement.lang||'sk';return supported.includes(v)?v:'sk'};
+ const C={
+  sk:{add:'Pridať 3 priority do plánu',added:'Priority pridané do plánu',already:'Tieto priority už sú v pláne',need:'Najprv vytvorte a použite AI Autoplán',week:'Týždeň'},
+  uk:{add:'Додати 3 пріоритети до плану',added:'Пріоритети додано до плану',already:'Ці пріоритети вже є в плані',need:'Спочатку створіть і застосуйте AI Автоплан',week:'Тиждень'},
+  en:{add:'Add 3 priorities to plan',added:'Priorities added to the plan',already:'These priorities are already in the plan',need:'Create and apply an AI Autoplan first',week:'Week'}
+ };
+ const t=()=>C[lang()]||C.sk;
+ const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||fallback)}catch(_){return JSON.parse(fallback)}};
+ const norm=v=>String(v||'').trim().replace(/\s+/g,' ').toLowerCase();
+ const projectId=()=>{const x=read(PROJECTS_KEY,'{}');return x?.activeId?String(x.activeId):'legacy'};
+ const hash=s=>{let h=2166136261;for(const ch of String(s||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(36)};
+ function coach(){const x=read(COACH_KEY,'{"version":1,"byProject":{}}');return x?.byProject?.[projectId()]?.[lang()]?.data||null}
+ function progressState(){const x=read(PROGRESS_KEY,'{"version":1,"byProject":{}}');return x&&x.byProject?x:{version:1,byProject:{}}}
+ function entry(){return progressState().byProject?.[projectId()]||null}
+ function priorities(){return (coach()?.priorities||[]).map(x=>String(x?.title||'').trim()).filter(Boolean).slice(0,3)}
+ function existingTexts(e){return new Set((e?.weeks||[]).flatMap(w=>(w?.tasks||[]).map(task=>norm(task?.text))).filter(Boolean))}
+ function targetWeek(e){const weeks=Array.isArray(e?.weeks)?e.weeks:[];const unfinished=weeks.find(w=>(w?.tasks||[]).some(task=>!task?.done));if(unfinished)return unfinished;return weeks.find(w=>Number(w?.week)===4)||weeks[weeks.length-1]||null}
+ function write(state){let payload=state;try{const safe=window.BusinessAIPrivacy?.sanitizeObject?.(state);if(safe)payload=safe.value}catch(_){}payload.version=1;localStorage.setItem(PROGRESS_KEY,JSON.stringify(payload))}
+ function status(text){const box=document.querySelector('.weekly-ai-coach');if(!box)return;let el=box.querySelector('.weekly-coach-apply-status');if(!el){el=document.createElement('span');el.className='weekly-coach-apply-status';box.querySelector('.weekly-coach-apply-actions')?.appendChild(el)}if(!el)return;el.textContent=text;setTimeout(()=>{if(el?.textContent===text)el.textContent=''},2200)}
+ function pokeProgress(){window.dispatchEvent(new CustomEvent('businessai:autoplan-progress-changed',{detail:{projectId:projectId(),source:'weekly-coach'}}));const section=document.querySelector('#weekly-review');if(section){const marker=document.createElement('span');marker.hidden=true;marker.setAttribute('data-progress-refresh','1');section.appendChild(marker);marker.remove()}}
+ function add(){const p=priorities();if(!p.length)return;const state=progressState(),id=projectId(),e=state.byProject[id];if(!e||!Array.isArray(e.weeks)||!e.weeks.length){status(t().need);return}const target=targetWeek(e);if(!target){status(t().need);return}const existing=existingTexts(e),missing=p.filter(x=>!existing.has(norm(x)));if(!missing.length){status(t().already);mount();return}const now=Date.now();if(!Array.isArray(target.tasks))target.tasks=[];missing.forEach((text,i)=>target.tasks.push({key:`coach-${now.toString(36)}-${i}-${hash(text)}`,text,done:false,source:'weekly-coach'}));e.updatedAt=new Date().toISOString();write(state);pokeProgress();status(`${t().added}: ${missing.length} · ${t().week} ${target.week}`);setTimeout(mount,80)}
+ function mount(){const box=document.querySelector('.weekly-ai-coach');if(!box)return;const p=priorities();const cached=!!coach();let actions=box.querySelector('.weekly-coach-apply-actions');if(!cached||!p.length){actions?.remove();return}if(!actions){actions=document.createElement('div');actions.className='weekly-coach-apply-actions';const privacy=box.querySelector('.weekly-ai-coach-privacy');if(privacy)box.insertBefore(actions,privacy);else box.appendChild(actions)}const e=entry(),existing=existingTexts(e),allAdded=p.every(x=>existing.has(norm(x)));actions.innerHTML=`<button type="button" class="btn ${allAdded?'secondary':'primary'}" data-weekly-coach-apply ${allAdded?'disabled':''}>${allAdded?'✓ '+t().already:'＋ '+t().add}</button><span class="weekly-coach-apply-status" aria-live="polite"></span>`;actions.querySelector('[data-weekly-coach-apply]')?.addEventListener('click',add)}
+ const style=document.createElement('style');style.textContent=`.weekly-coach-apply-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}.weekly-coach-apply-status{color:var(--accent);font-size:.82rem;font-weight:700}@media(max-width:560px){.weekly-coach-apply-actions .btn{width:100%}}`;document.head.appendChild(style);
+ let timer;const schedule=()=>{clearTimeout(timer);timer=setTimeout(mount,80)};new MutationObserver(schedule).observe(document.querySelector('#weekly-review')||document.querySelector('main')||document.body,{childList:true,subtree:true});window.addEventListener('businessai:language-changed',schedule);window.addEventListener('businessai:autoplan-progress-changed',schedule);document.addEventListener('click',e=>{if(e.target.closest('[data-lang]'))setTimeout(mount,100)});[0,150,600,1400].forEach(ms=>setTimeout(mount,ms));
+})();
